@@ -61,11 +61,29 @@ fs.readdir(path.resolve(__dirname, 'styles'), (err, items) => {
 
 
 function recursiveCopyFiles(sourcePath, destinatonPath){
-  fs.mkdir(path.resolve(__dirname, 'project-dist', 'assets'), { recursive: true }, err => {
-    if (err) {
-      throw err;
+  fs.readdir(path.resolve(__dirname, destinatonPath), async (err, items) => {
+    if(err) {
+      await fs.mkdir(path.resolve(__dirname, destinatonPath), { recursive: true }, err => {
+        if (err) {
+          throw err;
+        }
+      });
     }
-});
+    if (items) {
+      for(const item of items) {
+        fs.stat(path.resolve(destinatonPath, item), (err, stats) => {
+          if(err) throw err;
+          if(stats.isFile()) {
+            fs.unlink(path.join(destinatonPath, item), err => {
+              if (err) throw err;
+            });
+          }
+        });
+      }
+    }
+  });
+
+
   fs.readdir(path.resolve(__dirname, sourcePath), (err, items) => {
     items.forEach(item => {
       fs.stat(path.resolve(sourcePath, item), (err, stats) => {
