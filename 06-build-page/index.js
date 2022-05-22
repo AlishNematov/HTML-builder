@@ -91,7 +91,7 @@ function recursiveCopyFiles(sourcePath, destinatonPath){
         if(stats.isFile()) {
           fs.copyFile(path.resolve(sourcePath, item), path.resolve(destinatonPath, item), async err => {
              if(err) {
-              await fs.mkdir(path.resolve(__dirname, 'project-dist', 'assets'), { recursive: true }, err => {
+              await fs.mkdir(destinatonPath, { recursive: true }, err => {
                 if (err) {
                   throw err;
                 }
