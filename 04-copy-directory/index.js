@@ -1,49 +1,46 @@
 const fs = require('fs');
 const path  = require('path');
 
-function copyDir(sourcePath, destinatonPath) {
-
-  fs.readdir(destinatonPath, async (err, items) => {
-    if(err) {
-      await fs.mkdir(destinatonPath, { recursive: true }, err => {
-        if (err) throw err;
-      });
-    }
-    if (items) {
-      for(const item of items) {
-        await fs.stat(path.resolve(destinatonPath, item), async (err, stats) => {
-          if(err) throw err;
-          if(stats.isFile()) {
-            await fs.unlink(path.join(destinatonPath, item), err => {
-              if (err) throw err;
-            });
+async function copyDir(sourcePath, destinatonPath) {
+  await fs.promises.readdir(__dirname, 'utf8')
+  .then(async data => {
+    if(data.includes('files-copy')) {
+      await fs.promises.readdir(destinatonPath)
+      .then(
+        async data => {
+          if(!data.length) {
+            await letCopyFiles(sourcePath, destinatonPath);
+          } else {
+            data.forEach(async (item, index) => {
+              await fs.promises.rm(path.join(destinatonPath, item), {recursive: true, maxRetries: 100});
+              if(index = data.length-1) {
+                await letCopyFiles(sourcePath, destinatonPath);
+              }
+            })
           }
-        })
-      }
-    }
-  });
-
-  fs.readdir(sourcePath, (err, items) => {
-    if(err) {
-      throw err;
-    }
-    for (const item of items) {
-      fs.stat(path.resolve(sourcePath, item), (err, stats) => { 
-        if(err) throw err;
-        if(stats.isFile()) {
-          fs.copyFile(path.resolve(sourcePath, item), path.resolve(destinatonPath, item), err=> {
-            if(err) {
-              fs.mkdir(destinatonPath, { recursive: true }, err => {
-                if (err) throw err;
-              });
-            }
-          });
-        } else {
-          copyDir(path.resolve(sourcePath, item), path.resolve(destinatonPath, item));
         }
-      })
+      )
+    } else {
+      await fs.promises.mkdir(destinatonPath).then(letCopyFiles(sourcePath, destinatonPath));
     }
-  });
+  }).then();
+  
 }
 
-copyDir(path.resolve(__dirname, 'files'), path.resolve(__dirname, 'files-copy'));
+async function letCopyFiles(sourcePath, destinatonPath) {
+  await fs.promises.readdir(sourcePath, {withFileTypes: true})
+  .then(async data => {
+    await data.forEach(async item => {
+      if(item.isFile()) {
+        await fs.copyFile(path.join(sourcePath, item.name), path.join(destinatonPath, item.name), err => {if(err) { }});
+      } else {
+        await fs.promises.mkdir(path.join(destinatonPath, item.name), {recursive: true})
+        .then(await letCopyFiles(path.join(sourcePath, item.name), path.join(destinatonPath, item.name)))
+        
+      }
+    })
+  })
+}
+
+copyDir(path.join(__dirname, 'files'), path.join(__dirname, 'files-copy'));
+
