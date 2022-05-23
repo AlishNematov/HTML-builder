@@ -8,7 +8,7 @@ async function createHTML (templatePath, componentsPath, destPath) {
     let text = data.toString();
     await fs.promises.readdir(componentsPath, 'utf8')
     .then( async (items) => {
-        await items.forEach(async item => {
+        await items.forEach(async (item, index) => {
           await fs.promises.readFile(path.resolve(componentsPath, item))
           .then(async currentText => {
             if(text.includes(item.slice(0, item.indexOf('.')))) {
@@ -24,19 +24,22 @@ async function createHTML (templatePath, componentsPath, destPath) {
 }
 
 async function createCSS(sourcePath, destinatonPath) {
-  fs.promises.readdir(sourcePath, 'utf8')
-    .then(async data => 
-      await data.forEach(async item =>  {
-        if (path.parse(path.resolve(sourcePath, item)).ext === '.css') {
-          await fs.promises.readFile(path.resolve(sourcePath, item))
-          .then(async data => {
-            await fs.appendFile(destinatonPath, `${data.toString()}\n`, 'utf8', (err) => {
-              if(err){ throw err; }
-            });
-          })
-        }
-      })
-    )
+  fs.promises.writeFile(destinatonPath, '', 'utf8')
+  .then(
+    fs.promises.readdir(sourcePath, 'utf8')
+      .then(async data => 
+        await data.forEach(async item =>  {
+          if (path.parse(path.resolve(sourcePath, item)).ext === '.css') {
+            await fs.promises.readFile(path.resolve(sourcePath, item))
+            .then(async data => {
+              await fs.appendFile(destinatonPath, `${data.toString()}\n\n`, 'utf8', (err) => {
+                if(err){ throw err; }
+              });
+            })
+          }
+        })
+      )
+  )
 }
 
 async function copyDir(sourcePath, destinatonPath) {
@@ -52,16 +55,17 @@ async function copyDir(sourcePath, destinatonPath) {
           } else if(item.isDirectory()) {
             await fs.promises.mkdir(path.join(destinatonPath, item.name), {recursive: true})
             .then(await copyDir(path.join(sourcePath, item.name), path.join(destinatonPath, item.name)))
+            .catch(error => {throw error})
           }
         }
       )}
-    )
-  )
+    ).catch(error => {throw error})
+  ).catch(error=> {throw error})
 }
 
 async function bundleProject() {
   await createHTML(path.join(__dirname, 'template.html'), path.join(__dirname, 'components'), path.join(__dirname, 'project-dist', 'index.html'));
-  await createCSS(path.join(__dirname, 'styles'), path.join(__dirname, 'project-dist', 'bundle.css'));
+  await createCSS(path.join(__dirname, 'styles'), path.join(__dirname, 'project-dist', 'style.css'));
   await copyDir(path.join(__dirname, 'assets'), path.join(__dirname, 'project-dist', 'assets'));
 }
 
@@ -73,19 +77,20 @@ fs.promises.readdir(__dirname, 'utf8')
       if(!data.length) {
         await bundleProject();
       } else {
-        data.forEach(async (item, index) => {
+        await data.forEach(async (item, index) => {
           await fs.promises.rm(path.join(__dirname, 'project-dist', item), {recursive: true, maxRetries: 100});
-          if(index === data.length-1) {
+          if(index === 0) {
             await bundleProject();
           }
         })
+        await bundleProject();
       }
-    })
+    }).catch(error => {throw error})
   } else {
     await fs.promises.mkdir(path.join(__dirname, 'project-dist'), { recursive: true})
     .then(
       await bundleProject()
-      )
+      ).catch(error => {throw error})
   }
 })
 
