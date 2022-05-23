@@ -8,17 +8,13 @@ async function createHTML (templatePath, componentsPath, destPath) {
     let text = data.toString();
     await fs.promises.readdir(componentsPath, 'utf8')
     .then( async (items) => {
-        await items.forEach(async (item, index) => {
-          await fs.promises.readFile(path.resolve(componentsPath, item))
-          .then(async currentText => {
-            if(text.includes(item.slice(0, item.indexOf('.')))) {
-              text = await text.replace(`{{${item.slice(0, item.indexOf('.'))}}}`, currentText.toString())
-            }
-          })
-          await fs.promises.writeFile(destPath, text, 'utf8', (err) => {
-            if(err){ throw err; }
-          });
-        })
+        for(const item of items) {
+          let template = await fs.promises.readFile(path.resolve(componentsPath, item));
+          text = await text.replace(`{{${item.slice(0, item.indexOf('.'))}}}`, template.toString());
+        }
+        await fs.promises.writeFile(destPath, text, 'utf8', (err) => {
+          if(err){ throw err; }
+        });
     })
   })
 }
