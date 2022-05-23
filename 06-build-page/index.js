@@ -1,110 +1,91 @@
 const fs = require('fs');
 const path  = require('path');
 
-fs.mkdir(path.resolve(__dirname, 'project-dist'), { recursive: true }, err => {
-    if (err) {
-      throw err;
-    }
-});
-
-fs.readFile(path.resolve(__dirname, 'template.html'), (err, data) => {
-    if(err) {
-      throw err;
-    }
+async function createHTML (templatePath, componentsPath, destPath) {
+  await fs.readFile(templatePath, async (err, data) => {
+    if(err) { throw err; }
     
-    let text = data.toString()
-    fs.readdir(path.resolve(__dirname, 'components'), async (err, items) => {
-        if(err) {
-          throw err;
-        }
-
-        items.forEach(async item => {
-          fs.readFile(path.resolve(__dirname, 'components', item), async (err, currentText) => {
+    let text = data.toString();
+    await fs.promises.readdir(componentsPath, 'utf8')
+    .then( async (items) => {
+        await items.forEach(async item => {
+          await fs.promises.readFile(path.resolve(componentsPath, item))
+          .then(async currentText => {
             if(text.includes(item.slice(0, item.indexOf('.')))) {
-              text = text.replace(`{{${item.slice(0, item.indexOf('.'))}}}`, currentText.toString())
+              text = await text.replace(`{{${item.slice(0, item.indexOf('.'))}}}`, currentText.toString())
             }
-            await fs.promises.writeFile(path.resolve(__dirname, 'project-dist', 'index.html'), text, 'utf8', (err) => {
-              if(err){
-                throw err;
-              }
-            });
           })
+          await fs.promises.writeFile(destPath, text, 'utf8', (err) => {
+            if(err){ throw err; }
+          });
         })
-    })
-})
-
-fs.writeFile(path.resolve(__dirname, 'project-dist', 'style.css'), '', 'utf8', (err) => {
-  if(err){
-    throw err;
-  }
-});
-
-fs.readdir(path.resolve(__dirname, 'styles'), (err, items) => {
-  if(err) {
-    throw err;
-  }
-  items.forEach(item => {
-    if (path.parse(path.resolve(__dirname, 'styles', item)).ext === '.css') {
-      fs.readFile(path.resolve(__dirname, 'styles', item), (err, data) => {
-        if(err) {
-          throw err;
-        }
-        fs.appendFile(path.resolve(__dirname, 'project-dist', 'style.css'), `${data.toString()}\n`, 'utf8', (err) => {
-          if(err){
-            throw err;
-          }
-        });
-      });
-    }
-  })
-});
-
-
-function recursiveCopyFiles(sourcePath, destinatonPath){
-  fs.readdir(path.resolve(__dirname, destinatonPath), async (err, items) => {
-    if(err) {
-      await fs.mkdir(path.resolve(__dirname, destinatonPath), { recursive: true }, err => {
-        if (err) {
-          throw err;
-        }
-      });
-    }
-    if (items) {
-      for(const item of items) {
-        fs.stat(path.resolve(destinatonPath, item), (err, stats) => {
-          if(err) throw err;
-          if(stats.isFile()) {
-            fs.unlink(path.join(destinatonPath, item), err => {
-              if (err) throw err;
-            });
-          }
-        });
-      }
-    }
-  });
-
-
-  fs.readdir(path.resolve(__dirname, sourcePath), (err, items) => {
-    items.forEach(item => {
-      fs.stat(path.resolve(sourcePath, item), (err, stats) => {
-        if(err) throw err;
-        if(stats.isFile()) {
-          fs.copyFile(path.resolve(sourcePath, item), path.resolve(destinatonPath, item), async err => {
-             if(err) {
-              await fs.mkdir(destinatonPath, { recursive: true }, err => {
-                if (err) {
-                  throw err;
-                }
-            });
-            }
-            });
-        } else {
-          fs.mkdir(path.resolve(destinatonPath, item), { recursive: true }, err => { if (err) { throw err; }});
-          recursiveCopyFiles(path.resolve(sourcePath, item), path.resolve(destinatonPath, item));
-        }
-      })
     })
   })
 }
 
-recursiveCopyFiles(path.resolve(__dirname, 'assets'), path.resolve(__dirname, 'project-dist', 'assets'));
+async function createCSS(sourcePath, destinatonPath) {
+  fs.promises.readdir(sourcePath, 'utf8')
+    .then(async data => 
+      await data.forEach(async item =>  {
+        if (path.parse(path.resolve(sourcePath, item)).ext === '.css') {
+          await fs.promises.readFile(path.resolve(sourcePath, item))
+          .then(async data => {
+            await fs.appendFile(destinatonPath, `${data.toString()}\n`, 'utf8', (err) => {
+              if(err){ throw err; }
+            });
+          })
+        }
+      })
+    )
+}
+
+async function copyDir(sourcePath, destinatonPath) {
+  await fs.promises.mkdir(destinatonPath, {recursive: true})
+  .then(
+    await fs.promises.readdir(sourcePath, {withFileTypes: true})
+    .then(
+       async data => {
+         await data.forEach(
+        async item => {
+          if(item.isFile()) {
+            await fs.copyFile(path.join(sourcePath, item.name), path.join(destinatonPath, item.name), err => {if(err) { }});
+          } else if(item.isDirectory()) {
+            await fs.promises.mkdir(path.join(destinatonPath, item.name), {recursive: true})
+            .then(await copyDir(path.join(sourcePath, item.name), path.join(destinatonPath, item.name)))
+          }
+        }
+      )}
+    )
+  )
+}
+
+async function bundleProject() {
+  await createHTML(path.join(__dirname, 'template.html'), path.join(__dirname, 'components'), path.join(__dirname, 'project-dist', 'index.html'));
+  await createCSS(path.join(__dirname, 'styles'), path.join(__dirname, 'project-dist', 'bundle.css'));
+  await copyDir(path.join(__dirname, 'assets'), path.join(__dirname, 'project-dist', 'assets'));
+}
+
+fs.promises.readdir(__dirname, 'utf8')
+.then(async items => {
+  if (items.includes('project-dist')) {
+    await fs.promises.readdir(path.join(__dirname, 'project-dist'), 'utf-8')
+    .then(async data => {
+      if(!data.length) {
+        await bundleProject();
+      } else {
+        data.forEach(async (item, index) => {
+          await fs.promises.rm(path.join(__dirname, 'project-dist', item), {recursive: true, maxRetries: 100});
+          if(index === data.length-1) {
+            await bundleProject();
+          }
+        })
+      }
+    })
+  } else {
+    await fs.promises.mkdir(path.join(__dirname, 'project-dist'), { recursive: true})
+    .then(
+      await bundleProject()
+      )
+  }
+})
+
