@@ -4,7 +4,7 @@ const { stdout, stdin, exit } = process;
 
 stdout.write('Введите сообщение для записи:\n')
 
-fs.appendFile(path.resolve(__dirname, 'text.txt'), '', (err) => {
+fs.writeFile(path.resolve(__dirname, 'text.txt'), '', (err) => {
     if(err){
         throw err;
     }
