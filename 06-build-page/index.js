@@ -20,21 +20,18 @@ async function createHTML (templatePath, componentsPath, destPath) {
 }
 
 async function createCSS(sourcePath, destinatonPath) {
-  fs.promises.writeFile(destinatonPath, '', 'utf8')
-  .then(
-    fs.promises.readdir(sourcePath, 'utf8')
-      .then(async data => 
-        await data.forEach(async item =>  {
-          if (path.parse(path.resolve(sourcePath, item)).ext === '.css') {
-            await fs.promises.readFile(path.resolve(sourcePath, item))
-            .then(async data => {
-              await fs.appendFile(destinatonPath, `${data.toString()}\n\n`, 'utf8', (err) => {
-                if(err){ throw err; }
-              });
-            })
-          }
-        })
-      )
+  await fs.promises.readdir(sourcePath, 'utf8')
+    .then(async data => {
+      let template = '';
+      for(const item of data) {
+        if (path.parse(path.resolve(sourcePath, item)).ext === '.css') {
+          template += await fs.promises.readFile(path.resolve(sourcePath, item)) + '\n';
+        }
+      }
+      await fs.writeFile(destinatonPath, `${template.toString()}`, 'utf8', (err) => {
+        if(err){ throw err; }
+      });
+    }
   )
 }
 
@@ -79,7 +76,6 @@ fs.promises.readdir(__dirname, 'utf8')
             await bundleProject();
           }
         })
-        await bundleProject();
       }
     }).catch(error => {throw error})
   } else {
@@ -89,4 +85,3 @@ fs.promises.readdir(__dirname, 'utf8')
       ).catch(error => {throw error})
   }
 })
-
