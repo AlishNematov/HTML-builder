@@ -11,7 +11,7 @@ fs.writeFile(path.resolve(__dirname, 'text.txt'), '', (err) => {
 });
 
 stdin.on('data', data => {
-    if(data.toString().slice(0, 4) === 'exit') {
+    if(data.toString().trim() === 'exit') {
         exit();
     }
     fs.appendFile(path.resolve(__dirname, 'text.txt'), data, (err) => {
