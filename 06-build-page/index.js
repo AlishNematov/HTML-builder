@@ -10,7 +10,8 @@ async function createHTML (templatePath, componentsPath, destPath) {
     .then( async (items) => {
         for(const item of items) {
           let template = await fs.promises.readFile(path.resolve(componentsPath, item));
-          text = await text.replace(`{{${item.slice(0, item.indexOf('.'))}}}`, template.toString());
+          let re = new RegExp(`{{${item.slice(0, item.indexOf('.'))}}}`, 'g')
+          text = await text.replace(re, template.toString());
         }
         await fs.promises.writeFile(destPath, text, 'utf8', (err) => {
           if(err){ throw err; }
